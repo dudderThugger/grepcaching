@@ -19,10 +19,11 @@
 # kincset.
 #
 #
-# Dependencies: This script requires 'curl' for downloading content from URLs.
-# Install 'curl' using package manager:
-#   - For Debian/Ubuntu: sudo apt-get install curl
-#   - For CentOS/RHEL: sudo yum install curl
+# Dependencies: 
+#   This script requires 'curl' for downloading content from URLs.
+#   Install 'curl' using package manager:
+#       - For Debian/Ubuntu: sudo apt-get install curl
+#       - For CentOS/RHEL: sudo yum install curl
 #
 #
 # Usage: $ ./geocahchin.sh [options] [url]
@@ -31,12 +32,9 @@
 #   -p      Provide the starting point of the geochache search
 #
 # Example:
-#   ./geocahchin.sh -p www.first-page.com/geocaching.html
+#   ./geocahchin.sh -p http://www.first-page.com/geocaching.html
 # 
 ##################################################################################################################
-
-# Variables
-page="https://www.geocaching.com/play"
 
 # Function to print help message
 Help()
@@ -49,6 +47,40 @@ Help()
    echo "Example:"
    echo "  ./geocahchin.sh -p https://www.first-page.com/geocaching.html"
    echo ""
+}
+
+# Function: QueryForGeocache
+#
+# Description:
+#   This is the core function of the script. The function finds all <a> tags with the class "geocache",
+#   then prints all the geotreasures found and recursively calls itself for all the other URLs referenced in
+#   the href attribute to look for other treasures.
+#
+# Parameters:
+#   $1: URL of a page which containing geocache <a> tags in its html 
+#
+# Usage:
+#   QueryForGeocache [URL]
+#
+# Example:
+#   QueryForGeocache http://127.0.0.1:5000/geocache.html
+#
+QueryForGeocahce()
+{
+    content=$(curl -s "$1")
+    geocache=$(echo "$content" | grep '<a[^>]*class="geocache"[^>]*>.*</a>' | sed 's/<[^>]*>//g')
+    treasure=$(echo "$content" | grep '<a[^>]*class="geocache"[^>]*>.*</a>' | grep 'data-treasure="[^"]*"' | sed 's/^.*data-treasure="\([^"]*\)".*$/\1/')
+    href_value=$(echo "$content" | grep '<a[^>]*class="geocache"[^>]*>.*</a>' | grep 'href="[^"]*"' | sed 's/^.*href="\([^"]*\)".*$/\1/')
+
+    if [ -n "$geocache" ] && [ -n "$treasure" ]; then
+        echo "Found gecache at coordinates: $geocache       with treasure: $treasure"
+    fi
+
+    if [ -n "$href_value" ]; then
+        echo "$href_value" | while IFS= read -r line; do
+            QueryForGeocahce $line
+        done
+    fi
 }
 
 ############################################################
@@ -69,4 +101,4 @@ while getopts ":hp:" option; do
    esac
 done
 
-echo "$page"
+QueryForGeocahce "$page"
